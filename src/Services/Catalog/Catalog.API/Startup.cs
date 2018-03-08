@@ -198,13 +198,12 @@
                 app.UsePathBase(pathBase);
             }
 
-
             /// set up Zipkin tracing services
             var applicationName = Configuration["applicationName"];
             var lifetime = app.ApplicationServices.GetService<IApplicationLifetime>();
             lifetime.ApplicationStarted.Register(() => {
                 TraceManager.SamplingRate = 1.0f;
-                var logger = new TracingLogger(loggerFactory, "zipkin4net");
+                var logger = new TracingLogger(loggerFactory, "eShopOnContainers_" + applicationName);
                 var httpSender = new HttpZipkinSender("http://localhost:9411", "application/json");
                 var stats = new Statistics();
                 var tracer = new ZipkinTracer(httpSender, new JSONSpanSerializer(), stats);

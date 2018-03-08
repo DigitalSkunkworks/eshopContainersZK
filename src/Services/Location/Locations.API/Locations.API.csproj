@@ -4,7 +4,7 @@
     <TargetFramework>netcoreapp2.0</TargetFramework>
     <DockerComposeProjectPath>..\..\..\..\docker-compose.dcproj</DockerComposeProjectPath>
     <UserSecretsId>aspnet-Locations.API-20161122013619</UserSecretsId>
-    <TypeScriptToolsVersion>2.4</TypeScriptToolsVersion>
+    <TypeScriptToolsVersion>2.6</TypeScriptToolsVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="4.2.0" />
@@ -29,6 +29,17 @@
     <ProjectReference Include="..\..\..\BuildingBlocks\EventBus\EventBus\EventBus.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\HealthChecks\src\Microsoft.AspNetCore.HealthChecks\Microsoft.AspNetCore.HealthChecks.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\HealthChecks\src\Microsoft.Extensions.HealthChecks\Microsoft.Extensions.HealthChecks.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="common">
+      <HintPath>..\..\..\..\..\zipkin4net\Examples\aspnetcore\common\bin\Release\netstandard2.0\common.dll</HintPath>
+    </Reference>
+    <Reference Include="zipkin4net">
+      <HintPath>..\..\..\..\..\zipkin4net\Examples\aspnetcore\common\bin\Release\netstandard2.0\zipkin4net.dll</HintPath>
+    </Reference>
+    <Reference Include="zipkin4net.middleware.aspnetcore">
+      <HintPath>..\..\..\..\..\zipkin4net\Examples\aspnetcore\common\bin\Release\netstandard2.0\zipkin4net.middleware.aspnetcore.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <TypeScriptTarget>ES5</TypeScriptTarget>

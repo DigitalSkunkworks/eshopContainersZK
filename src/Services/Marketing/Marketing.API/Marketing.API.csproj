@@ -44,6 +44,17 @@
     <ProjectReference Include="..\..\..\BuildingBlocks\EventBus\EventBusServiceBus\EventBusServiceBus.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\WebHostCustomization\WebHost.Customization\WebHost.Customization.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Reference Include="common">
+      <HintPath>..\..\..\..\..\zipkin4net\Examples\aspnetcore\common\bin\Release\netstandard2.0\common.dll</HintPath>
+    </Reference>
+    <Reference Include="zipkin4net">
+      <HintPath>..\..\..\..\..\zipkin4net\Examples\aspnetcore\common\bin\Release\netstandard2.0\zipkin4net.dll</HintPath>
+    </Reference>
+    <Reference Include="zipkin4net.middleware.aspnetcore">
+      <HintPath>..\..\..\..\..\zipkin4net\Examples\aspnetcore\common\bin\Release\netstandard2.0\zipkin4net.middleware.aspnetcore.dll</HintPath>
+    </Reference>
+  </ItemGroup>
 
   <ItemGroup>
     <None Update="Pics\*">

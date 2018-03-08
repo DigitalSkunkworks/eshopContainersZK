@@ -3,13 +3,22 @@ using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Collections.Generic;
 using System.Linq;
+using zipkin4net;
 
 namespace Basket.API.Infrastructure.Filters
 {
     public class AuthorizeCheckOperationFilter : IOperationFilter
     {
+        private zipkin4net.Trace trace;
+        public AuthorizeCheckOperationFilter()
+        {
+            trace = zipkin4net.Trace.Create();
+        }
+
         public void Apply(Operation operation, OperationFilterContext context)
         {
+            trace.Record(Annotations.ServiceName("AuthorizeCheckOperationFilter:Apply"));
+            trace.Record(Annotations.ServerRecv());
             // Check for authorize attribute
             var hasAuthorize = context.ApiDescription.ControllerAttributes().OfType<AuthorizeAttribute>().Any() ||
                                context.ApiDescription.ActionAttributes().OfType<AuthorizeAttribute>().Any();
@@ -25,6 +34,7 @@ namespace Basket.API.Infrastructure.Filters
                     { "oauth2", new [] { "basketapi" } }
                 });
             }
+            trace.Record(Annotations.ServerSend());
         }
     }
 }

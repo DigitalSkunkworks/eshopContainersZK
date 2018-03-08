@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.eShopOnContainers.Services.Catalog.API.Infrastructure;
+using zipkin4net;
 
 namespace Catalog.API.Infrastructure.Migrations
 {
@@ -11,6 +12,12 @@ namespace Catalog.API.Infrastructure.Migrations
     [Migration("20170530133114_AddPictureFile")]
     partial class AddPictureFile
     {
+        private zipkin4net.Trace trace;
+        public AddPictureFile()
+        {
+            trace = zipkin4net.Trace.Create();
+        }
+
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
             modelBuilder
@@ -64,6 +71,7 @@ namespace Catalog.API.Infrastructure.Migrations
                     b.HasIndex("CatalogTypeId");
 
                     b.ToTable("Catalog");
+                trace.Record(Annotations.ServerSend());
                 });
 
             modelBuilder.Entity("Microsoft.eShopOnContainers.Services.Catalog.API.Model.CatalogType", b =>

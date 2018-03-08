@@ -16,6 +16,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
+using zipkin4net;
 
 namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
 {
@@ -32,9 +33,13 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
         private readonly IClientStore _clientStore;
         private readonly ILogger<AccountController> _logger;
         private readonly UserManager<ApplicationUser> _userManager;
+        private zipkin4net.Trace trace;
+        public AccountController()
+        {
+            trace = zipkin4net.Trace.Create();
+        }
 
         public AccountController(
-
             //InMemoryUserLoginService loginService,
             ILoginService<ApplicationUser> loginService,
             IIdentityServerInteractionService interaction,
@@ -42,6 +47,7 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
             ILogger<AccountController> logger,
             UserManager<ApplicationUser> userManager)
         {
+            trace = zipkin4net.Trace.Create();
             _loginService = loginService;
             _interaction = interaction;
             _clientStore = clientStore;
@@ -55,9 +61,13 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
         [HttpGet]
         public async Task<IActionResult> Login(string returnUrl)
         {
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.ServiceName("AccountController:Login"));
+            trace.Record(Annotations.Rpc("GET"));
             var context = await _interaction.GetAuthorizationContextAsync(returnUrl);
             if (context?.IdP != null)
             {
+                trace.Record(Annotations.ServerSend());
                 // if IdP is passed, then bypass showing the login screen
                 return ExternalLogin(context.IdP, returnUrl);
             }
@@ -66,6 +76,7 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
 
             ViewData["ReturnUrl"] = returnUrl;
 
+            trace.Record(Annotations.ServerSend());
             return View(vm);
         }
 
@@ -76,6 +87,10 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginViewModel model)
         {
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.ServiceName("AccountController:Login"));
+            trace.Record(Annotations.Rpc("POST"));
+
             if (ModelState.IsValid)
             {
                 var user = await _loginService.FindByUsername(model.Email);
@@ -96,9 +111,11 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
                     // make sure the returnUrl is still valid, and if yes - redirect back to authorize endpoint
                     if (_interaction.IsValidReturnUrl(model.ReturnUrl))
                     {
+                        trace.Record(Annotations.ServerSend());
                         return Redirect(model.ReturnUrl);
                     }
 
+                    trace.Record(Annotations.ServerSend());
                     return Redirect("~/");
                 }
 
@@ -110,11 +127,14 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
 
             ViewData["ReturnUrl"] = model.ReturnUrl;
 
+            trace.Record(Annotations.ServerSend());
             return View(vm);
         }
 
         async Task<LoginViewModel> BuildLoginViewModelAsync(string returnUrl, AuthorizationRequest context)
         {
+            trace.Record(Annotations.LocalOperationStart("AccountController:BuildLoginViewModelAsync"));
+
             var allowLocal = true;
             if (context?.ClientId != null)
             {
@@ -125,19 +145,24 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
                 }
             }
 
-            return new LoginViewModel
+            var tmp = new LoginViewModel
             {
                 ReturnUrl = returnUrl,
                 Email = context?.LoginHint,
             };
+            trace.Record(Annotations.LocalOperationStop());
+            return tmp;
         }
 
         async Task<LoginViewModel> BuildLoginViewModelAsync(LoginViewModel model)
         {
+            trace.Record(Annotations.LocalOperationStart("AccountController:BuildLoginViewModelAsync"));
+
             var context = await _interaction.GetAuthorizationContextAsync(model.ReturnUrl);
             var vm = await BuildLoginViewModelAsync(model.ReturnUrl, context);
             vm.Email = model.Email;
             vm.RememberMe = model.RememberMe;
+            trace.Record(Annotations.LocalOperationStop());
             return vm;
         }
 
@@ -147,8 +172,13 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
         [HttpGet]
         public async Task<IActionResult> Logout(string logoutId)
         {
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.ServiceName("AccountController:Logout"));
+            trace.Record(Annotations.Rpc("GET"));
+
             if (User.Identity.IsAuthenticated == false)
             {
+                trace.Record(Annotations.ServerSend());
                 // if the user is not authenticated, then just show logged out page
                 return await Logout(new LogoutViewModel { LogoutId = logoutId });
             }
@@ -157,6 +187,7 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
             var context = await _interaction.GetLogoutContextAsync(logoutId);
             if (context?.ShowSignoutPrompt == false)
             {
+                trace.Record(Annotations.ServerSend());
                 //it's safe to automatically sign-out
                 return await Logout(new LogoutViewModel { LogoutId = logoutId });
             }
@@ -167,6 +198,7 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
             {
                 LogoutId = logoutId
             };
+            trace.Record(Annotations.ServerSend());
             return View(vm);
         }
 
@@ -177,6 +209,10 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout(LogoutViewModel model)
         {
+            trace.Record(Annotations.ServiceName("AccountController:Logout"));
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.Rpc("POST"));
+
             var idp = User?.FindFirst(JwtClaimTypes.IdentityProvider)?.Value;
 
             if (idp != null && idp != IdentityServerConstants.LocalIdentityProvider)
@@ -202,6 +238,7 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
                 }
                 catch (Exception ex)
                 {
+                    trace.Record(Annotations.ServerSend());
                     _logger.LogCritical(ex.Message);
                 }
             }
@@ -215,17 +252,20 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
             // get context information (client name, post logout redirect URI and iframe for federated signout)
             var logout = await _interaction.GetLogoutContextAsync(model.LogoutId);
 
+            trace.Record(Annotations.ServerSend());
             return Redirect(logout?.PostLogoutRedirectUri);
         }
 
         public async Task<IActionResult> DeviceLogOut(string redirectUrl)
         {
+            trace.Record(Annotations.LocalOperationStart("AccountController:DeviceLogOut"));
             // delete authentication cookie
             await HttpContext.SignOutAsync();
 
             // set this so UI rendering sees an anonymous user
             HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity());
 
+            trace.Record(Annotations.LocalOperationStop());
             return Redirect(redirectUrl);
         }
 
@@ -235,6 +275,10 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
         [HttpGet]
         public IActionResult ExternalLogin(string provider, string returnUrl)
         {
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.ServiceName("AccountController:ExternalLogin"));
+            trace.Record(Annotations.Rpc("GET"));
+
             if (returnUrl != null)
             {
                 returnUrl = UrlEncoder.Default.Encode(returnUrl);
@@ -247,6 +291,7 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
                 RedirectUri = returnUrl,
                 Items = { { "scheme", provider } }
             };
+            trace.Record(Annotations.ServerSend());
             return new ChallengeResult(provider, props);
         }
 
@@ -256,7 +301,12 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
         [AllowAnonymous]
         public IActionResult Register(string returnUrl = null)
         {
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.ServiceName("AccountController:Register"));
+            trace.Record(Annotations.Rpc("GET"));
+
             ViewData["ReturnUrl"] = returnUrl;
+            trace.Record(Annotations.ServerSend());
             return View();
         }
 
@@ -267,6 +317,10 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterViewModel model, string returnUrl = null)
         {
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.ServiceName("AccountController:Register"));
+            trace.Record(Annotations.Rpc("POST"));
+
             ViewData["ReturnUrl"] = returnUrl;
             if (ModelState.IsValid)
             {
@@ -292,6 +346,7 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
                 if (result.Errors.Count() > 0)
                 {
                     AddErrors(result);
+                    trace.Record(Annotations.ServerSend());
                     // If we got this far, something failed, redisplay form
                     return View(model);
                 }
@@ -300,29 +355,46 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
             if (returnUrl != null)
             {
                 if (HttpContext.User.Identity.IsAuthenticated)
+                {
+                    trace.Record(Annotations.ServerSend());
                     return Redirect(returnUrl);
+                }
                 else
                     if (ModelState.IsValid)
+                {
+                    trace.Record(Annotations.ServerSend());
                     return RedirectToAction("login", "account", new { returnUrl = returnUrl });
+                }
                 else
+                {
+                    trace.Record(Annotations.ServerSend());
                     return View(model);
+                }
             }
 
+            trace.Record(Annotations.ServerSend());
             return RedirectToAction("index", "home");
         }
 
         [HttpGet]
         public IActionResult Redirecting()
         {
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.ServiceName("AccountController:Redirecting"));
+            trace.Record(Annotations.Rpc("GET"));
+            trace.Record(Annotations.ServerSend());
+
             return View();
         }
 
         private void AddErrors(IdentityResult result)
         {
+            trace.Record(Annotations.LocalOperationStart("AccountController:AddErrors"));
             foreach (var error in result.Errors)
             {
                 ModelState.AddModelError(string.Empty, error.Description);
             }
+            trace.Record(Annotations.LocalOperationStop());
         }
     }
 }

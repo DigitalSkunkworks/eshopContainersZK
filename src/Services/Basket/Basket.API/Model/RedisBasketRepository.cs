@@ -4,6 +4,7 @@ using StackExchange.Redis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using zipkin4net;
 
 namespace Microsoft.eShopOnContainers.Services.Basket.API.Model
 {
@@ -14,8 +15,14 @@ namespace Microsoft.eShopOnContainers.Services.Basket.API.Model
         private readonly ConnectionMultiplexer _redis;
         private readonly IDatabase _database;
 
+        private zipkin4net.Trace trace;
+        public RedisBasketRepository()
+        {
+            trace = zipkin4net.Trace.Create();
+        }
         public RedisBasketRepository(ILoggerFactory loggerFactory, ConnectionMultiplexer redis)
         {
+            trace = zipkin4net.Trace.Create();
             _logger = loggerFactory.CreateLogger<RedisBasketRepository>();
             _redis = redis;
             _database = redis.GetDatabase();

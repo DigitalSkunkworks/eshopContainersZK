@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using zipkin4net;
 
 namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
 {
@@ -20,9 +21,15 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         private readonly CatalogContext _catalogContext;
         private readonly CatalogSettings _settings;
         private readonly ICatalogIntegrationEventService _catalogIntegrationEventService;
+        private zipkin4net.Trace trace;
+        public CatalogController()
+        {
+            trace = zipkin4net.Trace.Create();
+        }
 
         public CatalogController(CatalogContext context, IOptionsSnapshot<CatalogSettings> settings, ICatalogIntegrationEventService catalogIntegrationEventService)
         {
+            trace = zipkin4net.Trace.Create();
             _catalogContext = context ?? throw new ArgumentNullException(nameof(context));
             _catalogIntegrationEventService = catalogIntegrationEventService ?? throw new ArgumentNullException(nameof(catalogIntegrationEventService));
 
@@ -37,6 +44,9 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         public async Task<IActionResult> Items([FromQuery]int pageSize = 10, [FromQuery]int pageIndex = 0)
 
         {
+            trace.Record(Annotations.ServiceName("CatalogController:Items"));
+            trace.Record(Annotations.ServerRecv());
+
             var totalItems = await _catalogContext.CatalogItems
                 .LongCountAsync();
 
@@ -51,6 +61,8 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
             var model = new PaginatedItemsViewModel<CatalogItem>(
                 pageIndex, pageSize, totalItems, itemsOnPage);
 
+            trace.Record(Annotations.ServerSend());
+
             return Ok(model);
         }
 
@@ -60,17 +72,23 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [ProducesResponseType(typeof(CatalogItem),(int)HttpStatusCode.OK)]
         public async Task<IActionResult> GetItemById(int id)
         {
+            trace.Record(Annotations.ServiceName("CatalogController:GetItemById"));
+            trace.Record(Annotations.ServerRecv());
+
             if (id <= 0)
             {
+                trace.Record(Annotations.ServerSend());
                 return BadRequest();
             }
 
             var item = await _catalogContext.CatalogItems.SingleOrDefaultAsync(ci => ci.Id == id);
             if (item != null)
             {
+                trace.Record(Annotations.ServerSend());
                 return Ok(item);
             }
 
+            trace.Record(Annotations.ServerSend());
             return NotFound();
         }
 
@@ -80,6 +98,8 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [ProducesResponseType(typeof(PaginatedItemsViewModel<CatalogItem>), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> Items(string name, [FromQuery]int pageSize = 10, [FromQuery]int pageIndex = 0)
         {
+            trace.Record(Annotations.ServiceName("CatalogController:Items"));
+            trace.Record(Annotations.ServerRecv());
 
             var totalItems = await _catalogContext.CatalogItems
                 .Where(c => c.Name.StartsWith(name))
@@ -96,6 +116,8 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
             var model = new PaginatedItemsViewModel<CatalogItem>(
                 pageIndex, pageSize, totalItems, itemsOnPage);
 
+            trace.Record(Annotations.ServerSend());
+
             return Ok(model);
         }
 
@@ -105,6 +127,9 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [ProducesResponseType(typeof(PaginatedItemsViewModel<CatalogItem>), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> Items(int? catalogTypeId, int? catalogBrandId, [FromQuery]int pageSize = 10, [FromQuery]int pageIndex = 0)
         {
+            trace.Record(Annotations.ServiceName("CatalogController:Items"));
+            trace.Record(Annotations.ServerRecv());
+
             var root = (IQueryable<CatalogItem>)_catalogContext.CatalogItems;
 
             if (catalogTypeId.HasValue)
@@ -130,6 +155,8 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
             var model = new PaginatedItemsViewModel<CatalogItem>(
                 pageIndex, pageSize, totalItems, itemsOnPage);
 
+            trace.Record(Annotations.ServerSend());
+
             return Ok(model);
         }
 
@@ -139,8 +166,13 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [ProducesResponseType(typeof(List<CatalogItem>), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> CatalogTypes()
         {
+            trace.Record(Annotations.ServiceName("CatalogController:CatalogTypes"));
+            trace.Record(Annotations.ServerRecv());
+
             var items = await _catalogContext.CatalogTypes
                 .ToListAsync();
+
+            trace.Record(Annotations.ServerSend());
 
             return Ok(items);
         }
@@ -151,8 +183,13 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [ProducesResponseType(typeof(List<CatalogItem>), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> CatalogBrands()
         {
+            trace.Record(Annotations.ServiceName("CatalogController:CatalogBrands"));
+            trace.Record(Annotations.ServerRecv());
+
             var items = await _catalogContext.CatalogBrands
                 .ToListAsync();
+
+            trace.Record(Annotations.ServerSend());
 
             return Ok(items);
         }
@@ -164,11 +201,15 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [ProducesResponseType((int)HttpStatusCode.Created)]
         public async Task<IActionResult> UpdateProduct([FromBody]CatalogItem productToUpdate)
         {
+            trace.Record(Annotations.ServiceName("CatalogController:UpdateProduct"));
+            trace.Record(Annotations.ServerRecv());
+
             var catalogItem = await _catalogContext.CatalogItems
                 .SingleOrDefaultAsync(i => i.Id == productToUpdate.Id);
 
             if (catalogItem == null)
             {
+                trace.Record(Annotations.ServerSend());
                 return NotFound(new { Message = $"Item with id {productToUpdate.Id} not found." });
             }
 
@@ -196,6 +237,8 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
                 await _catalogContext.SaveChangesAsync();
             }
 
+            trace.Record(Annotations.ServerSend());
+
             return CreatedAtAction(nameof(GetItemById), new { id = productToUpdate.Id }, null);
         }
 
@@ -205,6 +248,9 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [ProducesResponseType((int)HttpStatusCode.Created)]
         public async Task<IActionResult> CreateProduct([FromBody]CatalogItem product)
         {
+            trace.Record(Annotations.ServiceName("CatalogController:CreateProduct"));
+            trace.Record(Annotations.ServerRecv());
+
             var item = new CatalogItem
             {
                 CatalogBrandId = product.CatalogBrandId,
@@ -218,6 +264,8 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
 
             await _catalogContext.SaveChangesAsync();
 
+            trace.Record(Annotations.ServerSend());
+
             return CreatedAtAction(nameof(GetItemById), new { id = item.Id }, null);
         }
 
@@ -227,10 +275,14 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [ProducesResponseType((int)HttpStatusCode.NoContent)]
         public async Task<IActionResult> DeleteProduct(int id)
         {
+            trace.Record(Annotations.ServiceName("CatalogController:DeleteProduct"));
+            trace.Record(Annotations.ServerRecv());
+
             var product = _catalogContext.CatalogItems.SingleOrDefault(x => x.Id == id);
 
             if (product == null)
             {
+                trace.Record(Annotations.ServerSend());
                 return NotFound();
             }
 
@@ -238,11 +290,15 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
 
             await _catalogContext.SaveChangesAsync();
 
+            trace.Record(Annotations.ServerSend());
+
             return NoContent();
         }
 
         private List<CatalogItem> ChangeUriPlaceholder(List<CatalogItem> items)
         {
+            trace.Record(Annotations.ServiceName("CatalogController:ChangeUriPlaceholder"));
+
             var baseUri = _settings.PicBaseUrl;
 
             items.ForEach(catalogItem =>

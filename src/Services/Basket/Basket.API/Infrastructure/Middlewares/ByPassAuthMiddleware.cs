@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using zipkin4net;
 
 namespace Basket.API.Infrastructure.Middlewares
 {
@@ -12,8 +13,14 @@ namespace Basket.API.Infrastructure.Middlewares
     {
         private readonly RequestDelegate _next;
         private string _currentUserId;
+        private zipkin4net.Trace trace;
+        public ByPassAuthMiddleware()
+        {
+            trace = zipkin4net.Trace.Create();
+        }
         public ByPassAuthMiddleware(RequestDelegate next)
         {
+            trace = zipkin4net.Trace.Create();
             _next = next;
             _currentUserId = null;
         }

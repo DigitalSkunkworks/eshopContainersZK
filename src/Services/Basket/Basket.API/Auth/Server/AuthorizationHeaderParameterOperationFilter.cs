@@ -17,6 +17,7 @@ namespace Microsoft.eShopOnContainers.Services.Basket.API.Auth.Server
 
         public void Apply(Operation operation, OperationFilterContext context)
         {
+            trace.Record(Annotations.ServiceName("AuthorizationHeaderParameterOperationFilter:Apply"));
             trace.Record(Annotations.ServerRecv( ));
 
             var filterPipeline = context.ApiDescription.ActionDescriptor.FilterDescriptors;
@@ -37,6 +38,7 @@ namespace Microsoft.eShopOnContainers.Services.Basket.API.Auth.Server
                     Type = "string"
                 });
             }
+            trace.Record(Annotations.ServerSend( ));
         }
     }
 }

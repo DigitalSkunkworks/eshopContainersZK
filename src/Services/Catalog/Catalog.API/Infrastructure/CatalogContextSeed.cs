@@ -15,11 +15,18 @@
     using System.Linq;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
+    using zipkin4net;
 
     public class CatalogContextSeed
     {
+        private zipkin4net.Trace trace;
+        public CatalogContextSeed()
+        {
+            trace = zipkin4net.Trace.Create();
+        }
         public async Task SeedAsync(CatalogContext context,IHostingEnvironment env,IOptions<CatalogSettings> settings,ILogger<CatalogContextSeed> logger)
         {
+            trace.Record(Annotations.LocalOperationStart("SeedSync"));
             var policy = CreatePolicy(logger, nameof(CatalogContextSeed));
 
             await policy.ExecuteAsync(async () =>
@@ -57,14 +64,17 @@
                     GetCatalogItemPictures(contentRootPath, picturePath);
                 }
             });
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         private IEnumerable<CatalogBrand> GetCatalogBrandsFromFile(string contentRootPath, ILogger<CatalogContextSeed> logger)
         {
+            trace.Record(Annotations.LocalOperationStart("GetCatalogBrandsFromFile"));
             string csvFileCatalogBrands = Path.Combine(contentRootPath, "Setup", "CatalogBrands.csv");
 
             if (!File.Exists(csvFileCatalogBrands))
             {
+                trace.Record(Annotations.LocalOperationStop());
                 return GetPreconfiguredCatalogBrands();
             }
 
@@ -77,9 +87,11 @@
             catch (Exception ex)
             {
                 logger.LogError(ex.Message);
+                trace.Record(Annotations.LocalOperationStop());
                 return GetPreconfiguredCatalogBrands();
             }
 
+            trace.Record(Annotations.LocalOperationStop());
             return File.ReadAllLines(csvFileCatalogBrands)
                                         .Skip(1) // skip header row
                                         .SelectTry(x => CreateCatalogBrand(x))
@@ -89,6 +101,7 @@
 
         private CatalogBrand CreateCatalogBrand(string brand)
         {
+            trace.Record(Annotations.LocalOperationStart("CreateCatalogBrand"));
             brand = brand.Trim('"').Trim();
 
             if (String.IsNullOrEmpty(brand))
@@ -96,6 +109,7 @@
                 throw new Exception("catalog Brand Name is empty");
             }
 
+            trace.Record(Annotations.LocalOperationStop());
             return new CatalogBrand
             {
                 Brand = brand,
@@ -104,6 +118,8 @@
 
         private IEnumerable<CatalogBrand> GetPreconfiguredCatalogBrands()
         {
+            trace.Record(Annotations.LocalOperationStart("GetPreconfiguredCatalogBrands"));
+            trace.Record(Annotations.LocalOperationStop());
             return new List<CatalogBrand>()
             {
                 new CatalogBrand() { Brand = "Azure"},
@@ -116,10 +132,12 @@
 
         private IEnumerable<CatalogType> GetCatalogTypesFromFile(string contentRootPath, ILogger<CatalogContextSeed> logger)
         {
+            trace.Record(Annotations.LocalOperationStart("GetCatalogTypesFromFile"));
             string csvFileCatalogTypes = Path.Combine(contentRootPath, "Setup", "CatalogTypes.csv");
 
             if (!File.Exists(csvFileCatalogTypes))
             {
+                trace.Record(Annotations.LocalOperationStop());
                 return GetPreconfiguredCatalogTypes();
             }
 
@@ -132,9 +150,11 @@
             catch (Exception ex)
             {
                 logger.LogError(ex.Message);
+                trace.Record(Annotations.LocalOperationStop());
                 return GetPreconfiguredCatalogTypes();
             }
 
+            trace.Record(Annotations.LocalOperationStop());
             return File.ReadAllLines(csvFileCatalogTypes)
                                         .Skip(1) // skip header row
                                         .SelectTry(x => CreateCatalogType(x))
@@ -144,13 +164,16 @@
 
         private CatalogType CreateCatalogType(string type)
         {
+            trace.Record(Annotations.LocalOperationStart("CreateCatalogType"));
             type = type.Trim('"').Trim();
 
             if (String.IsNullOrEmpty(type))
             {
+                trace.Record(Annotations.LocalOperationStop());
                 throw new Exception("catalog Type Name is empty");
             }
 
+            trace.Record(Annotations.LocalOperationStop());
             return new CatalogType
             {
                 Type = type,
@@ -159,6 +182,8 @@
 
         private IEnumerable<CatalogType> GetPreconfiguredCatalogTypes()
         {
+            trace.Record(Annotations.LocalOperationStart("GetPreconfiguredCatalogTypes"));
+            trace.Record(Annotations.LocalOperationStop());
             return new List<CatalogType>()
             {
                 new CatalogType() { Type = "Mug"},
@@ -170,10 +195,12 @@
 
         private IEnumerable<CatalogItem> GetCatalogItemsFromFile(string contentRootPath, CatalogContext context, ILogger<CatalogContextSeed> logger)
         {
+            trace.Record(Annotations.LocalOperationStart("GetCatalogItemsFromFile"));
             string csvFileCatalogItems = Path.Combine(contentRootPath, "Setup", "CatalogItems.csv");
 
             if (!File.Exists(csvFileCatalogItems))
             {
+                trace.Record(Annotations.LocalOperationStop());
                 return GetPreconfiguredItems();
             }
 
@@ -187,12 +214,14 @@
             catch (Exception ex)
             {
                 logger.LogError(ex.Message);
+                trace.Record(Annotations.LocalOperationStop());
                 return GetPreconfiguredItems();
             }
 
             var catalogTypeIdLookup = context.CatalogTypes.ToDictionary(ct => ct.Type, ct => ct.Id);
             var catalogBrandIdLookup = context.CatalogBrands.ToDictionary(ct => ct.Brand, ct => ct.Id);
 
+            trace.Record(Annotations.LocalOperationStop());
             return File.ReadAllLines(csvFileCatalogItems)
                         .Skip(1) // skip header row
                         .Select(row => Regex.Split(row, ",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)") )
@@ -203,26 +232,31 @@
 
         private CatalogItem CreateCatalogItem(string[] column, string[] headers, Dictionary<String, int> catalogTypeIdLookup, Dictionary<String, int> catalogBrandIdLookup)
         {
+            trace.Record(Annotations.LocalOperationStart("CreateCatalogItem"));
             if (column.Count() != headers.Count())
             {
+                trace.Record(Annotations.LocalOperationStop());
                 throw new Exception($"column count '{column.Count()}' not the same as headers count'{headers.Count()}'");
             }
 
             string catalogTypeName = column[Array.IndexOf(headers, "catalogtypename")].Trim('"').Trim();
             if (!catalogTypeIdLookup.ContainsKey(catalogTypeName))
             {
+                trace.Record(Annotations.LocalOperationStop());
                 throw new Exception($"type={catalogTypeName} does not exist in catalogTypes");
             }
 
             string catalogBrandName = column[Array.IndexOf(headers, "catalogbrandname")].Trim('"').Trim();
             if (!catalogBrandIdLookup.ContainsKey(catalogBrandName))
             {
+                trace.Record(Annotations.LocalOperationStop());
                 throw new Exception($"type={catalogTypeName} does not exist in catalogTypes");
             }
 
             string priceString = column[Array.IndexOf(headers, "price")].Trim('"').Trim();
             if (!Decimal.TryParse(priceString, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out Decimal price))
             {
+                trace.Record(Annotations.LocalOperationStop());
                 throw new Exception($"price={priceString}is not a valid decimal number");
             }
 
@@ -248,6 +282,7 @@
                     }
                     else
                     {
+                        trace.Record(Annotations.LocalOperationStop());
                         throw new Exception($"availableStock={availableStockString} is not a valid integer");
                     }
                 }
@@ -265,6 +300,7 @@
                     }
                     else
                     {
+                        trace.Record(Annotations.LocalOperationStop());
                         throw new Exception($"restockThreshold={restockThreshold} is not a valid integer");
                     }
                 }
@@ -282,6 +318,7 @@
                     }
                     else
                     {
+                        trace.Record(Annotations.LocalOperationStop());
                         throw new Exception($"maxStockThreshold={maxStockThreshold} is not a valid integer");
                     }
                 }
@@ -299,16 +336,20 @@
                     }
                     else
                     {
+                        trace.Record(Annotations.LocalOperationStop());
                         throw new Exception($"onReorder={onReorderString} is not a valid boolean");
                     }
                 }
             }
 
+            trace.Record(Annotations.LocalOperationStop());
             return catalogItem;
         }
 
         private IEnumerable<CatalogItem> GetPreconfiguredItems()
         {
+            trace.Record(Annotations.LocalOperationStart("GetPreconfiguredItems"));
+            trace.Record(Annotations.LocalOperationStop());
             return new List<CatalogItem>()
             {
                 new CatalogItem { CatalogTypeId = 2, CatalogBrandId = 2, AvailableStock = 100, Description = ".NET Bot Black Hoodie", Name = ".NET Bot Black Hoodie", Price = 19.5M, PictureFileName = "1.png" },
@@ -328,10 +369,12 @@
 
         private string[] GetHeaders(string csvfile, string[] requiredHeaders, string[] optionalHeaders = null)
         {
+            trace.Record(Annotations.LocalOperationStart("GetHeaders"));
             string[] csvheaders = File.ReadLines(csvfile).First().ToLowerInvariant().Split(',');
 
             if (csvheaders.Count() < requiredHeaders.Count())
             {
+                trace.Record(Annotations.LocalOperationStop());
                 throw new Exception($"requiredHeader count '{ requiredHeaders.Count()}' is bigger then csv header count '{csvheaders.Count()}' ");
             }
 
@@ -339,6 +382,7 @@
             {
                 if (csvheaders.Count() > (requiredHeaders.Count() + optionalHeaders.Count()))
                 {
+                    trace.Record(Annotations.LocalOperationStop());
                     throw new Exception($"csv header count '{csvheaders.Count()}'  is larger then required '{requiredHeaders.Count()}' and optional '{optionalHeaders.Count()}' headers count");
                 }
             }
@@ -351,11 +395,13 @@
                 }
             }
 
+            trace.Record(Annotations.LocalOperationStop());
             return csvheaders;
         }
 
         private void GetCatalogItemPictures(string contentRootPath, string picturePath)
         {
+            trace.Record(Annotations.LocalOperationStart("GetCatalogItemPictures"));
             DirectoryInfo directory = new DirectoryInfo(picturePath);
             foreach (FileInfo file in directory.GetFiles())
             {
@@ -364,16 +410,20 @@
 
             string zipFileCatalogItemPictures = Path.Combine(contentRootPath, "Setup", "CatalogItems.zip");
             ZipFile.ExtractToDirectory(zipFileCatalogItemPictures, picturePath);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         private Policy CreatePolicy( ILogger<CatalogContextSeed> logger, string prefix,int retries = 3)
         {
+            trace.Record(Annotations.LocalOperationStart("GetCatalogItemPictures"));
+            trace.Record(Annotations.LocalOperationStop());
             return Policy.Handle<SqlException>().
                 WaitAndRetryAsync(
                     retryCount: retries,
                     sleepDurationProvider: retry => TimeSpan.FromSeconds(5),
                     onRetry: (exception, timeSpan, retry, ctx) =>
                     {
+                        trace.Record(Annotations.LocalOperationStop());
                         logger.LogTrace($"[{prefix}] Exception {exception.GetType().Name} with message ${exception.Message} detected on attempt {retry} of {retries}");
                     }
                 );

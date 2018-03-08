@@ -42,6 +42,7 @@ namespace Microsoft.eShopOnContainers.Services.Basket.API.Controllers
         {
             trace.Record(Annotations.ServiceName("BasketController:Get"));
             trace.Record(Annotations.ServerRecv());
+
             var basket = await _repository.GetBasketAsync(id);
             trace.Record(Annotations.ServerSend());
 

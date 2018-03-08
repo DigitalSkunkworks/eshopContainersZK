@@ -5,6 +5,7 @@ using Microsoft.eShopOnContainers.Services.Catalog.API.Infrastructure;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
+using zipkin4net;
 
 // For more information on enabling MVC for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -14,10 +15,16 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
     {
         private readonly IHostingEnvironment _env;
         private readonly CatalogContext _catalogContext;
+        private zipkin4net.Trace trace;
+        public PicController()
+        {
+            trace = zipkin4net.Trace.Create();
+        }
 
         public PicController(IHostingEnvironment env,
             CatalogContext catalogContext)
         {
+            trace = zipkin4net.Trace.Create();
             _env = env;
             _catalogContext = catalogContext;
         }
@@ -29,8 +36,12 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         // GET: /<controller>/
         public async Task<IActionResult> GetImage(int catalogItemId)
         {
+            trace.Record(Annotations.ServiceName("PicController:GetImage"));
+            trace.Record(Annotations.ServerRecv());
+
             if (catalogItemId <= 0)
             {
+                trace.Record(Annotations.ServerSend());
                 return BadRequest();
             }
 
@@ -47,14 +58,17 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
 
                 var buffer = System.IO.File.ReadAllBytes(path);
 
+                trace.Record(Annotations.ServerSend());
                 return File(buffer, mimetype);
             }
 
+            trace.Record(Annotations.ServerSend());
             return NotFound();
         }
 
         private string GetImageMimeTypeFromImageFileExtension(string extension)
         {
+            trace.Record(Annotations.LocalOperationStart("GetImageMimeTypeFromImageFileExtension"));
             string mimetype;
 
             switch (extension)
@@ -88,6 +102,7 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
                     mimetype = "application/octet-stream";
                     break;
             }
+            trace.Record(Annotations.LocalOperationStop());
 
             return mimetype;
         }

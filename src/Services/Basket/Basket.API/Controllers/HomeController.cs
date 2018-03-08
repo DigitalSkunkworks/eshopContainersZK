@@ -17,7 +17,6 @@ namespace Microsoft.eShopOnContainers.Services.Basket.API.Controllers
         public IActionResult Index()
         {
             trace.Record(Annotations.ServiceName("HomeController:Index"));
-            trace.Record(Annotations.ServerRecv());
             return new RedirectResult("~/swagger");
         }
     }

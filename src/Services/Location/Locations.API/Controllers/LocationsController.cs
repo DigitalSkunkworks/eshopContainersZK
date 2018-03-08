@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using zipkin4net;
 
 namespace Locations.API.Controllers
 {
@@ -16,9 +17,15 @@ namespace Locations.API.Controllers
     {
         private readonly ILocationsService _locationsService;
         private readonly IIdentityService _identityService;
+        private zipkin4net.Trace trace;
+        public LocationsController()
+        {
+            trace = zipkin4net.Trace.Create();
+        }
 
         public LocationsController(ILocationsService locationsService, IIdentityService identityService)
         {
+            trace = zipkin4net.Trace.Create();
             _locationsService = locationsService ?? throw new ArgumentNullException(nameof(locationsService));
             _identityService = identityService ?? throw new ArgumentNullException(nameof(identityService));
         }
@@ -29,7 +36,11 @@ namespace Locations.API.Controllers
         [ProducesResponseType(typeof(UserLocation), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> GetUserLocation(Guid userId)
         {
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.ServiceName("LocationsController:GetUserLocation"));
+            trace.Record(Annotations.Rpc("GET"));
             var userLocation = await _locationsService.GetUserLocation(userId.ToString());
+            trace.Record(Annotations.ServerSend());
             return Ok(userLocation);
         }
 
@@ -39,7 +50,12 @@ namespace Locations.API.Controllers
         //[ProducesResponseType(typeof(List<Locations>), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> GetAllLocations()
         {
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.ServiceName("LocationsController:GetUserLocation"));
+            trace.Record(Annotations.Rpc("GET"));
+
             var locations = await _locationsService.GetAllLocation();
+            trace.Record(Annotations.ServerSend());
             return Ok(locations);
         }
 
@@ -49,7 +65,12 @@ namespace Locations.API.Controllers
         //[ProducesResponseType(typeof(List<Locations>), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> GetLocation(int locationId)
         {
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.ServiceName("LocationsController:GetLocation"));
+            trace.Record(Annotations.Rpc("GET"));
+
             var location = await _locationsService.GetLocation(locationId);
+            trace.Record(Annotations.ServerSend());
             return Ok(location);
         }
          
@@ -60,9 +81,14 @@ namespace Locations.API.Controllers
         [ProducesResponseType((int)HttpStatusCode.BadRequest)]
         public async Task<IActionResult> CreateOrUpdateUserLocation([FromBody]LocationRequest newLocReq)
         {
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.ServiceName("LocationsController:GetLocation"));
+            trace.Record(Annotations.Rpc("POST"));
+
             var userId = _identityService.GetUserIdentity();
             var result = await _locationsService.AddOrUpdateUserLocation(userId, newLocReq);
            
+            trace.Record(Annotations.ServerSend());
             return result ? 
                 (IActionResult)Ok() : 
                 (IActionResult)BadRequest();

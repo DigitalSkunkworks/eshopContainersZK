@@ -9,14 +9,21 @@
     using System;
     using System.Collections.Generic;
     using System.Threading.Tasks;
+    using zipkin4net;
 
     public class LocationsService : ILocationsService
     {
         private readonly ILocationsRepository _locationsRepository;
         private readonly IEventBus _eventBus;
+        private zipkin4net.Trace trace;
+        public LocationsService()
+        {
+            trace = zipkin4net.Trace.Create();
+        }
 
         public LocationsService(ILocationsRepository locationsRepository, IEventBus eventBus)
         {
+            trace = zipkin4net.Trace.Create();
             _locationsRepository = locationsRepository ?? throw new ArgumentNullException(nameof(locationsRepository));
             _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
         }
@@ -38,11 +45,13 @@
 
         public async Task<bool> AddOrUpdateUserLocation(string userId, LocationRequest currentPosition)
         {            
+            trace.Record(Annotations.LocalOperationStart("LocationsService:AddOrUpdateUserLocation"));
             // Get the list of ordered regions the user currently is within
             var currentUserAreaLocationList = await _locationsRepository.GetCurrentUserRegionsListAsync(currentPosition);
                       
             if(currentUserAreaLocationList is null)
             {
+                trace.Record(Annotations.LocalOperationStop());
                 throw new LocationDomainException("User current area not found");
             }
 
@@ -59,18 +68,22 @@
             // with the new locations updated
             PublishNewUserLocationPositionIntegrationEvent(userId, currentUserAreaLocationList);
 
+            trace.Record(Annotations.LocalOperationStop());
             return true;
         }
 
         private void PublishNewUserLocationPositionIntegrationEvent(string userId, List<Locations> newLocations)
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsService:PublishNewUserLocationPositionIntegrationEvent"));
             var newUserLocations = MapUserLocationDetails(newLocations);
             var @event = new UserLocationUpdatedIntegrationEvent(userId, newUserLocations);
             _eventBus.Publish(@event);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         private List<UserLocationDetails> MapUserLocationDetails(List<Locations> newLocations)
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsService:MapUserLocationDetails"));
             var result = new List<UserLocationDetails>();
             newLocations.ForEach(location => {
                 result.Add(new UserLocationDetails()
@@ -81,6 +94,7 @@
                 });
             });
 
+            trace.Record(Annotations.LocalOperationStop());
             return result;
         }
     }

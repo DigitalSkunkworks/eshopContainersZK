@@ -9,12 +9,19 @@
     using MongoDB.Driver.GeoJsonObjectModel;
     using System.Collections.Generic;
     using System.Threading.Tasks;
+    using zipkin4net;
 
     public class LocationsContextSeed
     {
+        private static zipkin4net.Trace trace;
+        public LocationsContextSeed()
+        {
+            trace = zipkin4net.Trace.Create();
+        }
         private static LocationsContext ctx;
         public static async Task SeedAsync(IApplicationBuilder applicationBuilder, ILoggerFactory loggerFactory)
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:SeedAsync"));
             var config = applicationBuilder
                 .ApplicationServices.GetRequiredService<IOptions<LocationSettings>>();
 
@@ -31,10 +38,12 @@
                 await SetAustralia();
                 await SetBarcelonaLocations();
             }
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         static async Task SetNorthAmerica()
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:SetNorthAmerica"));
             var us = new Locations()
             {
                 Code = "NA",
@@ -45,10 +54,12 @@
             us.SetArea(GetNorthAmericaPoligon());
             await ctx.Locations.InsertOneAsync(us);
             await SetUSLocations(us.Id);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         static async Task SetUSLocations(string parentId)
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:SetUSLocations"));
             var us = new Locations()
             {
                 Parent_Id = parentId,
@@ -60,10 +71,12 @@
             us.SetArea(GetUSPoligon());
             await ctx.Locations.InsertOneAsync(us);
             await SetWashingtonLocations(us.Id);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         static async Task SetWashingtonLocations(string parentId)
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:SetWashingtonLocations"));
             var wht = new Locations()
             {
                 Parent_Id = parentId,
@@ -76,10 +89,12 @@
             await ctx.Locations.InsertOneAsync(wht);
             await SetSeattleLocations(wht.Id);
             await SetRedmondLocations(wht.Id);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         static async Task SetSeattleLocations(string parentId)
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:SetSeattleLocations"));
             var stl = new Locations()
             {
                 Parent_Id = parentId,
@@ -90,10 +105,12 @@
             stl.SetArea(GetSeattlePoligon());
             stl.SetLocation(-122.330747, 47.603111);
             await ctx.Locations.InsertOneAsync(stl);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         static async Task SetRedmondLocations(string parentId)
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:SetRedmondLocations"));
             var rdm = new Locations()
             {
                 Parent_Id = parentId,
@@ -104,10 +121,12 @@
             rdm.SetLocation(-122.122887, 47.674961);
             rdm.SetArea(GetRedmondPoligon());
             await ctx.Locations.InsertOneAsync(rdm);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         static async Task SetBarcelonaLocations()
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:SetBarcelonaLocations"));
             var bcn = new Locations()
             {
                 Code = "BCN",
@@ -117,10 +136,12 @@
             bcn.SetLocation(2.156453, 41.395226);
             bcn.SetArea(GetBarcelonaPoligon());
             await ctx.Locations.InsertOneAsync(bcn);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         static async Task SetSouthAmerica()
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:SetSouthAmerica"));
             var sa = new Locations()
             {
                 Code = "SA",
@@ -130,10 +151,12 @@
             sa.SetLocation(-60.328704, -16.809748); 
             sa.SetArea(GetSouthAmericaPoligon());
             await ctx.Locations.InsertOneAsync(sa);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         static async Task SetAfrica()
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:SetAfrica"));
             var afc = new Locations()
             {
                 Code = "AFC",
@@ -143,10 +166,12 @@
             afc.SetLocation(19.475383, 13.063667); 
             afc.SetArea(GetAfricaPoligon());
             await ctx.Locations.InsertOneAsync(afc);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         static async Task SetEurope()
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:SetEurope"));
             var eu = new Locations()
             {
                 Code = "EU",
@@ -156,10 +181,12 @@
             eu.SetLocation(13.147258, 49.947844); 
             eu.SetArea(GetEuropePoligon());
             await ctx.Locations.InsertOneAsync(eu);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         static async Task SetAsia()
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:SetAsia"));
             var asa = new Locations()
             {
                 Code = "AS",
@@ -169,10 +196,12 @@
             asa.SetLocation(97.522257, 56.069107);
             asa.SetArea(GetAsiaPoligon());
             await ctx.Locations.InsertOneAsync(asa);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         static async Task SetAustralia()
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:SetAustralia"));
             var aus = new Locations()
             {
                 Code = "AUS",
@@ -182,19 +211,23 @@
             aus.SetLocation(133.733195, -25.010726);
             aus.SetArea(GetAustraliaPoligon());
             await ctx.Locations.InsertOneAsync(aus);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         static async Task SetIndexes()
         {
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:SetIndexes"));
             // Set location indexes
             var builder = Builders<Locations>.IndexKeys;
             var keys = builder.Geo2DSphere(prop => prop.Location);
             await ctx.Locations.Indexes.CreateOneAsync(keys);
+            trace.Record(Annotations.LocalOperationStop());
         }
 
         static List<GeoJson2DGeographicCoordinates> GetNorthAmericaPoligon()
         {
-            return new List<GeoJson2DGeographicCoordinates>()
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:GetNorthAmericaPoligon"));
+            var tmp = new List<GeoJson2DGeographicCoordinates>()
                      {
                         new GeoJson2DGeographicCoordinates(-168.07786, 68.80277),
                         new GeoJson2DGeographicCoordinates(-119.60378, 32.7561),
@@ -205,11 +238,14 @@
                         new GeoJson2DGeographicCoordinates(-75.39806, 72.93141),
                         new GeoJson2DGeographicCoordinates(-168.07786, 68.80277)
                      };
+            trace.Record(Annotations.LocalOperationStop());
+            return tmp;
         }
 
         static List<GeoJson2DGeographicCoordinates> GetSouthAmericaPoligon()
         {
-            return new List<GeoJson2DGeographicCoordinates>()
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:GetSouthAmericaPoligon"));
+            var tmp = new List<GeoJson2DGeographicCoordinates>()
                      {
                         new GeoJson2DGeographicCoordinates(-91.43724, 13.29007),
                         new GeoJson2DGeographicCoordinates(-87.96315, -27.15081),
@@ -221,11 +257,14 @@
                         new GeoJson2DGeographicCoordinates(-44.46056, -16.6746),
                         new GeoJson2DGeographicCoordinates(-91.43724, 13.29007),
                      };
+            trace.Record(Annotations.LocalOperationStop());
+            return tmp;
         }
 
         static List<GeoJson2DGeographicCoordinates> GetAfricaPoligon()
         {
-            return new List<GeoJson2DGeographicCoordinates>()
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:GetAfricaPoligon"));
+            var tmp = new List<GeoJson2DGeographicCoordinates>()
                      {
                         new GeoJson2DGeographicCoordinates(-12.68724, 34.05892),
                         new GeoJson2DGeographicCoordinates(-18.33301, 20.77313),
@@ -239,11 +278,14 @@
                         new GeoJson2DGeographicCoordinates(6.58235, 37.05665),
                         new GeoJson2DGeographicCoordinates(-12.68724, 34.05892),
                      };
+            trace.Record(Annotations.LocalOperationStop());
+            return tmp;
         }
 
         static List<GeoJson2DGeographicCoordinates> GetEuropePoligon()
         {
-            return new List<GeoJson2DGeographicCoordinates>()
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:GetEuropePoligon"));
+            var tmp = new List<GeoJson2DGeographicCoordinates>()
                      {
                         new GeoJson2DGeographicCoordinates(-11.73143, 35.27646),
                         new GeoJson2DGeographicCoordinates(-10.84462, 35.25123),
@@ -253,11 +295,14 @@
                         new GeoJson2DGeographicCoordinates(-10.88788, 61.13851),
                         new GeoJson2DGeographicCoordinates(-11.73143, 35.27646),
                      };
+            trace.Record(Annotations.LocalOperationStop());
+            return tmp;
         }
 
         static List<GeoJson2DGeographicCoordinates> GetAsiaPoligon()
         {
-            return new List<GeoJson2DGeographicCoordinates>()
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:GetAsiaPoligon"));
+            var tmp = new List<GeoJson2DGeographicCoordinates>()
                      {
                         new GeoJson2DGeographicCoordinates(31.1592, 45.91629),
                         new GeoJson2DGeographicCoordinates(32.046, 45.89479),
@@ -268,11 +313,14 @@
                         new GeoJson2DGeographicCoordinates(32.00274, 67.23428),
                         new GeoJson2DGeographicCoordinates(31.1592, 45.91629),
                      };
+            trace.Record(Annotations.LocalOperationStop());
+            return tmp;
         }
 
         static List<GeoJson2DGeographicCoordinates> GetAustraliaPoligon()
         {
-            return new List<GeoJson2DGeographicCoordinates>()
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:GetAustraliaPoligon"));
+            var tmp = new List<GeoJson2DGeographicCoordinates>()
                      {
                         new GeoJson2DGeographicCoordinates(100.76857, -45.74117),
                         new GeoJson2DGeographicCoordinates(101.65538, -45.76273),
@@ -283,11 +331,14 @@
                         new GeoJson2DGeographicCoordinates(101.61212, -11.44654),
                         new GeoJson2DGeographicCoordinates(100.76857, -45.74117),
                      };
+            trace.Record(Annotations.LocalOperationStop());
+            return tmp;
         }
 
         static List<GeoJson2DGeographicCoordinates> GetUSPoligon()
         {
-            return new List<GeoJson2DGeographicCoordinates>()
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:GetUSPoligon"));
+            var tmp = new List<GeoJson2DGeographicCoordinates>()
                      {
                         new GeoJson2DGeographicCoordinates(-62.88205, 48.7985),
                         new GeoJson2DGeographicCoordinates(-129.3132, 48.76513),
@@ -296,11 +347,14 @@
                         new GeoJson2DGeographicCoordinates(-78.11975, 24.24979),
                         new GeoJson2DGeographicCoordinates(-62.88205, 48.7985)
                      };
+            trace.Record(Annotations.LocalOperationStop());
+            return tmp;
         }
 
         static List<GeoJson2DGeographicCoordinates> GetSeattlePoligon()
         {
-            return new List<GeoJson2DGeographicCoordinates>()
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:GetSeattlePoligon"));
+            var tmp = new List<GeoJson2DGeographicCoordinates>()
                      {
                         new GeoJson2DGeographicCoordinates(-122.36238,47.82929),
                         new GeoJson2DGeographicCoordinates(-122.42091,47.6337),
@@ -309,11 +363,14 @@
                         new GeoJson2DGeographicCoordinates(-122.26934,47.73644),
                         new GeoJson2DGeographicCoordinates(-122.36238,47.82929)
                      };
+            trace.Record(Annotations.LocalOperationStop());
+            return tmp;
         }
 
         static List<GeoJson2DGeographicCoordinates> GetRedmondPoligon()
         {
-            return new List<GeoJson2DGeographicCoordinates>()
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:GetRedmondPoligon"));
+            var tmp = new List<GeoJson2DGeographicCoordinates>()
                      {
                         new GeoJson2DGeographicCoordinates(-122.15432, 47.73148),
                         new GeoJson2DGeographicCoordinates(-122.17673, 47.72559),
@@ -324,11 +381,14 @@
                         new GeoJson2DGeographicCoordinates(-122.04961, 47.74244),
                         new GeoJson2DGeographicCoordinates(-122.15432, 47.73148)
                      };
+            trace.Record(Annotations.LocalOperationStop());
+            return tmp;
         }
 
         static List<GeoJson2DGeographicCoordinates> GetWashingtonPoligon()
         {
-            return new List<GeoJson2DGeographicCoordinates>()
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:GetWashingtonPoligon"));
+            var tmp = new List<GeoJson2DGeographicCoordinates>()
                      {
                         new GeoJson2DGeographicCoordinates(-124.68633, 48.8943),
                         new GeoJson2DGeographicCoordinates(-124.32962, 45.66613),
@@ -336,11 +396,14 @@
                         new GeoJson2DGeographicCoordinates(-116.96912, 49.04282),
                         new GeoJson2DGeographicCoordinates(-124.68633, 48.8943)
                      };
+            trace.Record(Annotations.LocalOperationStop());
+            return tmp;
         }
 
         static List<GeoJson2DGeographicCoordinates> GetBarcelonaPoligon()
         {
-            return new List<GeoJson2DGeographicCoordinates>()
+            trace.Record(Annotations.LocalOperationStart("LocationsContextSeed:GetBarcelonaPoligon"));
+            var tmp = new List<GeoJson2DGeographicCoordinates>()
             {
                 new GeoJson2DGeographicCoordinates(2.033879, 41.383858),
                 new GeoJson2DGeographicCoordinates(2.113741, 41.419068),
@@ -349,6 +412,8 @@
                 new GeoJson2DGeographicCoordinates(2.137101, 41.299536),
                 new GeoJson2DGeographicCoordinates(2.033879, 41.383858)
             };
+            trace.Record(Annotations.LocalOperationStop());
+            return tmp;
         }
     }
 }

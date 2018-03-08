@@ -27,6 +27,12 @@ using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Threading.Tasks;
 
+using zipkin4net;
+using zipkin4net.Tracers.Zipkin;
+using zipkin4net.Transport;
+using zipkin4net.Transport.Http;
+using zipkin4net.Middleware;
+
 namespace Microsoft.eShopOnContainers.Services.Locations.API
 {
     public class Startup
@@ -161,6 +167,20 @@ namespace Microsoft.eShopOnContainers.Services.Locations.API
             {
                 app.UsePathBase(pathBase);
             }
+
+            var applicationName = Configuration["applicationName"];
+            /// set up Zipkin tracing services
+            var lifetime = app.ApplicationServices.GetService<IApplicationLifetime>();
+            lifetime.ApplicationStarted.Register(() => {
+                TraceManager.SamplingRate = 1.0f;
+                var logger = new TracingLogger(loggerFactory, "eShopOnContainers_" + applicationName);
+                var httpSender = new HttpZipkinSender("http://localhost:9411", "application/json");
+                var stats = new Statistics();
+                var tracer = new ZipkinTracer(httpSender, new JSONSpanSerializer(), stats);
+                TraceManager.RegisterTracer(tracer);
+                TraceManager.Start(logger);
+            });
+            lifetime.ApplicationStopped.Register(() => TraceManager.Stop());
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
             app.Map("/liveness", lapp => lapp.Run(async ctx => ctx.Response.StatusCode = 200));

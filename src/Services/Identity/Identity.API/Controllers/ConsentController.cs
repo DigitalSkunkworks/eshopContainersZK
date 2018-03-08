@@ -6,6 +6,7 @@ using Microsoft.eShopOnContainers.Services.Identity.API.Models.AccountViewModels
 using Microsoft.Extensions.Logging;
 using System.Linq;
 using System.Threading.Tasks;
+using zipkin4net;
 
 namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
 {
@@ -18,14 +19,19 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
         private readonly IClientStore _clientStore;
         private readonly IResourceStore _resourceStore;
         private readonly IIdentityServerInteractionService _interaction;
+        private zipkin4net.Trace trace;
+        public ConsentController()
+        {
+            trace = zipkin4net.Trace.Create();
+        }
 
-        
         public ConsentController(
             ILogger<ConsentController> logger,
             IIdentityServerInteractionService interaction,
             IClientStore clientStore,
             IResourceStore resourceStore)
         {
+            trace = zipkin4net.Trace.Create();
             _logger = logger;
             _interaction = interaction;
             _clientStore = clientStore;
@@ -40,13 +46,19 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string returnUrl)
         {
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.ServiceName("ConsentController:Index"));
+            trace.Record(Annotations.Rpc("GET"));
+
             var vm = await BuildViewModelAsync(returnUrl);
             ViewData["ReturnUrl"] = returnUrl;
             if (vm != null)
             {
+                trace.Record(Annotations.ServerSend());
                 return View("Index", vm);
             }
 
+            trace.Record(Annotations.ServerSend());
             return View("Error");
         }
 
@@ -57,6 +69,10 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Index(ConsentInputModel model)
         {
+            trace.Record(Annotations.ServerRecv());
+            trace.Record(Annotations.ServiceName("ConsentController:Index"));
+            trace.Record(Annotations.Rpc("POST"));
+
             // parse the return URL back to an AuthorizeRequest object
             var request = await _interaction.GetAuthorizationContextAsync(model.ReturnUrl);
             ConsentResponse response = null;
@@ -93,6 +109,7 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
                 // communicate outcome of consent back to identityserver
                 await _interaction.GrantConsentAsync(request, response);
 
+                trace.Record(Annotations.ServerSend());
                 // redirect back to authorization endpoint
                 return Redirect(model.ReturnUrl);
             }
@@ -100,14 +117,18 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
             var vm = await BuildViewModelAsync(model.ReturnUrl, model);
             if (vm != null)
             {
+                trace.Record(Annotations.ServerSend());
                 return View("Index", vm);
             }
 
+            trace.Record(Annotations.ServerSend());
             return View("Error");
         }
 
         async Task<ConsentViewModel> BuildViewModelAsync(string returnUrl, ConsentInputModel model = null)
         {
+            trace.Record(Annotations.LocalOperationStart("AccountController:BuildViewModelAsync"));
+
             var request = await _interaction.GetAuthorizationContextAsync(returnUrl);
             if (request != null)
             {
@@ -117,6 +138,7 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
                     var resources = await _resourceStore.FindEnabledResourcesByScopeAsync(request.ScopesRequested);
                     if (resources != null && (resources.IdentityResources.Any() || resources.ApiResources.Any()))
                     {
+                        trace.Record(Annotations.LocalOperationStop());
                         return new ConsentViewModel(model, returnUrl, request, client, resources);
                     }
                     else
@@ -133,6 +155,7 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Controllers
             {
                 _logger.LogError("No consent request matching request: {0}", returnUrl);
             }
+            trace.Record(Annotations.LocalOperationStop());
 
             return null;
         }

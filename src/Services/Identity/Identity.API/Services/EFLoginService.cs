@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.eShopOnContainers.Services.Identity.API.Models;
 using System.Threading.Tasks;
+using zipkin4net;
 
 namespace Microsoft.eShopOnContainers.Services.Identity.API.Services
 {
